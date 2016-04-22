@@ -1,16 +1,15 @@
-Speaker Output Range= 0.0005000 2.820000
-Speaker Left DAQ Channel= Dev1/ao0
-Speaker Right DAQ Channel= Dev1/ao1
-DAQ TrigChanOut= Dev1/port0/line0
-DAQ TrigChanIn= /Dev1/PFI1
-Mic volts per Pascal= 1.000000
-Mic DAQ Chan= Dev1/ai0
+Speaker Output Range= 0.0010000 2.820000
+Speaker Left DAQ Channel= Dev/ao0
+Speaker Right DAQ Channel= Dev/ao1
+DAQ TrigChanOut= Dev/port0/line0
+DAQ TrigChanIn= /Dev/PFI1
+Mic volts per Pascal= 2.82
+Mic DAQ Chan= Dev/ai0
 Output Rate= 500000.000000
 Input Rate= 250000.000000
 Using Attenuator= True
-Left Atten DAQ Chans= Dev1/line1:3
-Right Atten DAQ Chans= Dev1/line4:6
+Left Atten DAQ Chans= Dev/line2:4
+Right Atten DAQ Chans= Dev/line5:7
 Max Attenuation= 60
-DAQ Device = Dev1
+DAQ Device = Dev
 Mic=Flat
-

@@ -277,7 +277,6 @@ def runSpeakerCal(appObj, testMode=False):
     
             freq_idx = 0
 
-            attenSig = AudioHardware.makeLM1972AttenSig(0)
             
             if not testMode:
                 AudioHardware.Attenuator.setLevel(0, attenLines)
@@ -496,7 +495,7 @@ def runSpeakerCal(appObj, testMode=False):
                 break
                 
         if not appObj.doneFlag:
-            saveDir = appObj.settingsPath
+            saveDir = appObj.configPath
             saveSpeakerCal(spCal, saveDir)
             appObj.audioHW.loadSpeakerCalFromProcData(spCal)
             appObj.spCal = spCal            

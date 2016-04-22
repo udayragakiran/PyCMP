@@ -44,12 +44,12 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         
         baseDir = os.getcwd()
         self.baseDir = baseDir
-        self.configPath = os.path.join(self.baseDir, 'config')
+        self.configPath = os.path.join(self.baseDir, 'config', 'local')
         self._readConfig()
 
         self.doneFlag = False
         self.isCollecting = False
-        self.settingsPath = ''
+        self.settingsPath = self.configPath
         
         self.xLblStyle = {'color': '#000', 'font-size': '16pt'}
         self.yLblStyle = {'color': '#000', 'font-size': '16pt'}
@@ -74,7 +74,7 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         
     def _readConfig(self):
         try:
-            filepath = os.path.join(self.baseDir, 'config', 'AudioHardware.txt')
+            filepath = os.path.join(self.configPath, 'AudioHardware.txt')
             audioHW = AudioHardware.readAudioHWConfig(filepath)
         except:
             print("Could not read in audio hardware config")
@@ -83,7 +83,7 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         self.audioHW = audioHW
         
         try:
-            filepath = os.path.join(self.baseDir, 'config', 'Bioamp.txt')
+            filepath = os.path.join(self.configPath, 'Bioamp.txt')
             bioamp = Bioamp.readBioampConfig(filepath)
         except:
             print("Could not read in bioamp config")
@@ -93,12 +93,12 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         
         # load in last speeaker calibration
         filename = 'speaker_cal_last.pickle'
-        filepath = os.path.join(self.baseDir, filename)
+        filepath = os.path.join(self.configPath, filename)
         spCal = SpeakerCalibration.loadSpeakerCal(filepath)
         self.audioHW.loadSpeakerCalFromProcData(spCal)
         
         
-        micFilePath = os.path.join(self.baseDir, 'config', 'microphones.txt')
+        micFilePath = os.path.join(self.configPath, 'microphones.txt')
         if os.path.exists(micFilePath):
             (micNameArray, micRespArray) = CMPCommon.readMicResponseFile(micFilePath)   # defined in OCTCommon.py
         else:

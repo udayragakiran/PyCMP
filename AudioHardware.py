@@ -7,18 +7,21 @@ Created on Wed Oct  7 12:45:03 2015
 import numpy as np
 import re   # regular expressions
 import ctypes
-
+import DAQHardware 
 
 
 class Attenuator:
-    attenlib = ctypes.CDLL('Attenuator')
-    set_attenlvl = attenlib.DAQIOSetAttenuatorLevel
-    set_attenlvl.argtypes = [ ctypes.c_uint8, ctypes.c_char_p ]
-    set_attenlvl.resttypes = ctypes.c_int32
+    #attenlib = ctypes.CDLL('Attenuator')
+    #set_attenlvl = attenlib.DAQIOSetAttenuatorLevel
+    #set_attenlvl.argtypes = [ ctypes.c_uint8, ctypes.c_char_p ]
+    #set_attenlvl.resttypes = ctypes.c_int32
     
     def setLevel(attenLvl, outLines):
-        err = Attenuator.set_attenlvl(ctypes.c_uint8(attenLvl), outLines.encode("ASCII"))
-        return err
+        # err = Attenuator.set_attenlvl(ctypes.c_uint8(attenLvl), outLines.encode("ASCII"))
+        sig = makeLM1971AttenSig(attenLvl)
+        daq = DAQHardware.DAQHardware()
+        daq.sendDigOutCmd(outLines, sig)
+        
 
 class AudioHardware:
     def __init__(self):
@@ -64,23 +67,39 @@ class AudioHardware:
     def getCalibratedOutputVoltageAndAttenLevel(self, freq, ampdB, speakerNum):
         freqArray = self.speakerCalFreq[speakerNum, :]
         calArray = self.speakerCal[speakerNum, :]
-        print("AudioHardware.getCalibratedOutputVoltageAndAttenLevel freq= %f freqArray= %s calArray= %s" % (freq, repr(freqArray), repr(calArray)))
+        #DebugLog.log("AudioHardware.getCalibratedOutputVoltageAndAttenLevel freq= %f freqArray= %s calArray= %s" % (freq, repr(freqArray), repr(calArray)))
         caldBarr = np.interp([freq], freqArray, calArray)
         caldB = caldBarr[0]
         dBdiff = ampdB - caldB
-        print("AudioHardware.getCalibratedOutputVoltageAndAttenLevel ampdB= %f caldB= %f dBdiff= %f" % (ampdB, caldB, dBdiff))
+        print("AudioHardware.getCalibratedOutputVoltageAndAttenLevel freq= %f ampdB= %f caldB= %f dBdiff= %f" % (freq, ampdB, caldB, dBdiff))
         outV = self.speakerCalVolts*(10 ** (dBdiff/20))
         minV = self.speakerOutputRng[0]
         maxV = self.speakerOutputRng[1]
         attenLevel = 0
         if outV > maxV:
             outV = 0
-        elif outV < minV:
-            attenLevel = np.ceil(20 * np.log10(minV/outV))
-            attenLevel = int(attenLevel)
-            outV = minV
-        if attenLevel > self.maxAtten:
-            outV = 0
+            print("AudioHardware.getCalibratedOutputVoltageAndAttenLevel outV > maxV")
+#        elif outV < minV:
+#            attenLevel = np.ceil(20 * np.log10(minV/outV))
+#            attenLevel = int(attenLevel)
+#            outV = minV
+        else:
+            tmpV = self.speakerCalVolts
+            if (dBdiff < 0) and (dBdiff > -self.maxAtten):
+                print("AudioHardware.getCalibratedOutputVoltageAndAttenLevel case 1")
+                attenLevel = np.floor(-dBdiff)
+                outV = tmpV*(10 ** ((attenLevel+dBdiff)/20))
+            elif dBdiff >=0:
+                pass
+            else: # if dbDiff is beyond attenuator range, need to attenuatoe with DAQ as well
+                print("AudioHardware.getCalibratedOutputVoltageAndAttenLevel case 2")
+                attenLevel = self.maxAtten
+                outV = tmpV*(10 ** ((attenLevel+dBdiff)/20))
+            if outV < minV:
+                outV = 0
+        print("AudioHardware.getCalibratedOutputVoltageAndAttenLevel outV = %f" % outV)
+#        if attenLevel > self.maxAtten:
+#            outV = 0
    
         return (outV, attenLevel)
        
@@ -255,34 +274,45 @@ def readAudioHWConfig(filepath):
     
     return hw
         
-# make the digital signal to set the attenuator level for given dB level
-def makeLM1972AttenSig(attenLvl):
-    numpts = 16*3 + 3
-    loadSig = np.zeros(numpts, dtype=np.uint8)
+def makeLM1971AttenSig(attenLvl):
+    numpts = 16*2 + 2   # one clock cycle is 2 steps and there are 16 data bits. Plus, an extra bit on either side to raise the Load
     
     # load signal 
+    loadSig = np.zeros(numpts, dtype=np.uint8)
     loadSig[0] = 1 
-    loadSig[numpts-1] = 1  
+    loadSig[-1] = 1  
+
+    # clock signal (low on first half, high on second half)    
     clkSig = np.zeros(numpts, dtype=np.uint8)
-    dataSig =  np.zeros(numpts, dtype=np.uint8)
-    
+    bitTracker=np.zeros(numpts, dtype=np.uint8)     
     for n in range(0, 16):
-        clkSig[n*3 + 2] = 1
+        clkSig[n*2+2] = 1
+        bitTracker[n*2+2] = n % 8
         
-    # generate number in binary by repeated divinsion by 2
-    for n in range(7, -1, -1):
-        idx = n*3 + 2
-        r = attenLvl % 2
-        dataSig[idx-1:idx+2] = r
-        attenLvl = attenLvl // 2
-        
-    # generate signal output as 32-bit number because thats what NIDAQ uses for writing digital 
-    sig = np.zeros(numpts, dtype=np.uint32)
-    loadMask = 1 << 2
-    dataMask = 1 << 1
-    clkMask = 1 << 0
-    for n in range(0, numpts):
-        sig[n] = (loadMask*loadSig[n]) | (dataMask*dataSig[n]) | (clkMask*clkSig[n])
+    # Data signal
+    dataSig =  np.zeros(numpts, dtype=np.uint8) 
+    # first byte - all zeros so there is nothing to do
+    # second byte 
+    data=np.unpackbits(np.uint8(attenLvl))
+    for n in range(0, 8):
+        dataSig[n*2+16+1]=data[n]
+        dataSig[n*2+16+2]=data[n]
+
+#    print(loadSig)
+#    print(clkSig)
+#    print(dataSig)
+#    print(bitTracker)
+#    print('data',data)
+      
+    # combine the signals together and then form 8-bit numbers
+    # bit 0=load, 1=Data, 2=Clock     
+    sig = np.zeros(numpts, dtype=np.uint8)
+    combinedData=np.transpose(np.vstack((sig,sig,sig,sig,sig,clkSig,dataSig,loadSig)))
+#    combinedData=np.transpose(np.vstack((clkSig,dataSig,loadSig)))    
+    sig=np.packbits(combinedData,axis=1)
+#    print(combinedData.shape, sig.shape)
+#    print(combinedData)
+#    print(sig)
         
     return sig
 

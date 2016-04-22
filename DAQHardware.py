@@ -138,18 +138,33 @@ class DAQHardware:
         
         return data
         
-    def sendDigOutCmd(self, outLines, outCmd, timeBetweenPts=0.0001):
+    def sendDigOutCmd(self, outLines, outCmd, timeBetweenPts=0.001):
+        # first figure out how many lines to send the digital signal to
+        channels=outLines.split(':',2)
+        if len(channels)==2:  # more than one channel to output
+            chanStart=np.uint8(channels[0][-1]) # pick the number just before the colon
+            chanEnd=np.uint8(channels[1][0])  #pick the number just after the colon
+            numChan=chanEnd-chanStart+1
+        else:
+            numChan=1
+        print('numChan',numChan)
+        
+        #setup the digital output task
         dig_out = daqmx.Task()
         dig_out.CreateDOChan(outLines, "", daqmx.DAQmx_Val_ChanForAllLines)
-        # print(dig_out)
-        numpts = len(outCmd)
-        doSamplesWritten = daqmx.c_int32()
-        # dig_out.WriteDigitalU32(numSampsPerChan=numpts, autoStart=True, timeout=1.0, dataLayout=daqmx.DAQmx_Val_GroupByScanNumber, writeArray=outCmd, reserved=None, sampsPerChanWritten=byref(doSamplesWritten))
-        # print("Digital output: Wrote %d samples" % doSamplesWritten.value)
-        for n in range(0, numpts):
-            outCmd_n = np.array(outCmd[n])
-            dig_out.WriteDigitalU32(numSampsPerChan=1, autoStart=True, timeout=0.01, dataLayout=daqmx.DAQmx_Val_GroupByScanNumber, writeArray=outCmd_n, reserved=None, sampsPerChanWritten=byref(doSamplesWritten))            
+        dig_out.StartTask()       
+        for n in outCmd:    #loop through every number in the sequence, format them appropriately, then output them
+            data=np.unpackbits(np.uint8(n))
+            data_reversed=np.uint8(np.copy(np.fliplr([data])[0]))
+            dataOut_reversed=np.uint8(data_reversed[0:numChan])  # data output array should only be as long as the number of output lines
+            dataOut=np.uint8(np.fliplr([dataOut_reversed])[0])
+            dataOut = np.require(dataOut, np.uint8, ['C', 'W'])
+            print('outCmd, dataOut=',n,dataOut)
+            dig_out.WriteDigitalLines(1,1,10.0,daqmx.DAQmx_Val_GroupByChannel,dataOut_reversed,None,None)
             time.sleep(timeBetweenPts)
+        dig_out.StopTask()
+        dig_out.ClearTask()       
+        print('finished writing to attenuator')
 
     def waitDoneTask(task, timeout):
         err = 0

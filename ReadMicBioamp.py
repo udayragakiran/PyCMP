@@ -93,12 +93,13 @@ def run(appObj, testMode=False):
                 bioampPI.setData(data.transpose())
             
             numfftpts = npts*2
-            mic_fft = np.fft.fft(mic_data, numfftpts)
+            win_fcn = 2*np.hanning(npts)
+            mic_fft = np.fft.fft(win_fcn*mic_data, numfftpts)
             endIdx = np.ceil(numfftpts/2)
             mic_fft = mic_fft[0:endIdx]
-            mic_fft_mag = 2*np.abs(mic_fft)
+            mic_fft_mag = 2*np.abs(mic_fft)/numfftpts
             
-            fftrms_corr = 2/(npts*np.sqrt(2))
+            fftrms_corr = 1/(np.sqrt(2))
             mic_fft_mag = fftrms_corr*mic_fft_mag 
             mic_fft_mag_log = 20*np.log10(mic_fft_mag/20e-6 )  # 20e-6 pa
             

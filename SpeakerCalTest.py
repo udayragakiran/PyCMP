@@ -237,7 +237,7 @@ def runSpeakerCalTest(appObj):
                 endIdx = int(5e-3 * outputRate)        # only plot first 5 ms
                 pl.plot(t[0:endIdx], spkOut[0:endIdx], pen='b')
                 
-                attenSig = AudioHardware.makeLM1972AttenSig(attenLvl)
+#                attenSig = AudioHardware.makeLM1972AttenSig(attenLvl)
                 numInputSamples = int(inputRate*len(spkOut)/outputRate) 
                 
                 if not testMode:
