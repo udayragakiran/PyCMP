@@ -1,0 +1,4 @@
+Gain=10000
+DAQ Channel= Dev1/ai1
+
+
