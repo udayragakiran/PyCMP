@@ -93,10 +93,12 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         
         # load in last speeaker calibration
         filename = 'speaker_cal_last.pickle'
-        filepath = os.path.join(self.configPath, filename)
-        spCal = SpeakerCalibration.loadSpeakerCal(filepath)
-        self.audioHW.loadSpeakerCalFromProcData(spCal)
-        
+        try:
+            filepath = os.path.join(self.configPath, filename)
+            spCal = SpeakerCalibration.loadSpeakerCal(filepath)
+            self.audioHW.loadSpeakerCalFromProcData(spCal)
+        except:
+            print("Could not read speaker calibration")
         
         micFilePath = os.path.join(self.configPath, 'microphones.txt')
         if os.path.exists(micFilePath):

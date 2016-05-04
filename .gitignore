@@ -1,2 +1,4 @@
 config/local/
 __pycache__/
+config/local/AudioHardware.txt
+config/local/Bioamp.txt
