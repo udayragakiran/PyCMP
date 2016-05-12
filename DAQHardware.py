@@ -55,7 +55,7 @@ class DAQHardware:
         analog_output = None
         
         
-    def setupAnalogOutput(self, chanNames, digTrigChan, outputRate, data):
+    def setupAnalogOutput(self, chanNames, digTrigChan, outputRate, data, isContinuous=False):
         numSamples = data.shape[0]
 
         print("DAQhardware.setupAnalogOutput(): chanNames= %s digTrigChan= %s outputRate= %f numSamples= %f" % (chanNames, digTrigChan, outputRate, numSamples))
@@ -66,7 +66,11 @@ class DAQHardware:
         data = np.require(data, np.float, ['C', 'W'])
         for chanName in chanNames:
             analog_output.CreateAOVoltageChan(chanName,"",-10.0,10.0, daqmx.DAQmx_Val_Volts, None)
-        analog_output.CfgSampClkTiming("",outputRate, daqmx.DAQmx_Val_Rising, daqmx.DAQmx_Val_FiniteSamps, numSamples)
+            
+        sampleType = daqmx.DAQmx_Val_FiniteSamps
+        if isContinuous:
+            sampleType = daqmx.DAQmx_Val_ContSamps
+        analog_output.CfgSampClkTiming("",outputRate, daqmx.DAQmx_Val_Rising, sampleType, numSamples)
         analog_output.CfgDigEdgeStartTrig(digTrigChan, daqmx.DAQmx_Val_Rising) 
         #analog_output.WriteAnalogF64(numSampsPerChan=numSamples, autoStart=False,timeout=3.0, dataLayout=daqmx.DAQmx_Val_GroupByChannel, writeArray=data, reserved=None, sampsPerChanWritten=byref(samplesWritten))
         analog_output.WriteAnalogF64(numSampsPerChan=numSamples, autoStart=False,timeout=3.0, dataLayout=daqmx.DAQmx_Val_GroupByScanNumber, writeArray=data, reserved=None, sampsPerChanWritten=byref(samplesWritten))

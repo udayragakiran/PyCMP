@@ -30,6 +30,7 @@ import CM
 import CMPCommon
 import DPOAE
 import ABR
+import NoiseExp
 
 #form_class = uic.loadUiType(os.path.join("..", "ui", "PyCMP.ui"))[0]                 # Load the UI
 form_class = uic.loadUiType("PyCMP.ui")[0]                 # Load the UI
@@ -57,7 +58,7 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         self.freqComboBoxes = [self.DPOAE_freqLow_comboBox, self.DPOAE_freqHigh_comboBox, self.ABR_freqLow_comboBox, self.ABR_freqHigh_comboBox, self.CM_freqLow_comboBox, self.CM_freqHigh_comboBox]
         self._bindEventHandlers()
         
-        self.protocolButtons = [self.calSpeakers_pushButton, self.calTest_pushButton, self.readMicBioamp_pushButton, self.runCM_pushButton, self.runDPOAE_pushButton, self.runABR_pushButton ]
+        self.protocolButtons = [self.calSpeakers_pushButton, self.calTest_pushButton, self.readMicBioamp_pushButton, self.runCM_pushButton, self.runDPOAE_pushButton, self.runABR_pushButton, self.noiseExp_pushButton ]
         freqArray = self.getFrequencyArray()
         self.updateFrequencyInfo(freqArray)
         
@@ -76,6 +77,7 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         try:
             filepath = os.path.join(self.configPath, 'AudioHardware.txt')
             audioHW = AudioHardware.readAudioHWConfig(filepath)
+            
         except:
             print("Could not read in audio hardware config")
             audioHW = AudioHardware.AudioHardware()
@@ -180,6 +182,7 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         self.runABR_pushButton.clicked.connect(self.runABRclicked)
         
         self.ABR_calClick_pushButton.clicked.connect(self.ABR_calClick)
+        self.noiseExp_pushButton.clicked.connect(self.noiseExp_Click)
         
         self.connect(self, QtCore.SIGNAL('triggered()'), self.closeEvent)
         
@@ -225,6 +228,12 @@ class CMPWindowClass(QtGui.QMainWindow, form_class):
         else:
             self.doneFlag = True
         
+    def noiseExp_Click(self):
+        if not self.isCollecting:
+            NoiseExp.runNoiseExp(self)
+        else:
+            self.doneFlag = True
+            
     def freqDeltaChanged(self):
         fLow = self.freqLow_dblSpinBox.value()*1000
         fHigh = self.freqHigh_dblSpinBox.value()*1000
