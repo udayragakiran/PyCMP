@@ -578,8 +578,7 @@ def runDPOAE(appObj, testMode=False):
                     # attenSig = AudioHardware.makeLM1972AttenSig(0)
                     if not testMode:
                         if numSpk > 1:
-                            AudioHardware.Attenuator.setLevel(attenLvl1, attenLines1)
-                            AudioHardware.Attenuator.setLevel(attenLvl2, attenLines2)
+                            audioHW.setAttenuatorLevel(attenLvl1, attenLvl2, daq)
                         else:
                             if attenLvl1 > attenLvl2:
                                 dbDiff = attenLvl1 - attenLvl2
@@ -589,7 +588,9 @@ def runDPOAE(appObj, testMode=False):
                                 dbDiff = attenLvl2 - attenLvl1
                                 attenLvl2 = attenLvl1
                                 vOut1 = vOut1*(10**(dbDiff/20))
-                            AudioHardware.Attenuator.setLevel(attenLvl1, attenLines1)
+                                
+                            audioHW.setAttenuatorLevel(attenLvl1, audioHW.maxAtten, daq)
+                            
                         # daq.sendDigOutDPOAEd(attenLines, attenSig)
                         # appObj.oct_hw.SetAttenLevel(0, attenLines)
                     

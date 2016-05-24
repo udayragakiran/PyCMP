@@ -37,7 +37,7 @@ def makeSpkCalTestOutput(freq, amp, audioHW, stimDur, spkNum):
     
     return sig, attenLvl
    
-def processSpkCalTestData(mic_data, freq, freq_idx, amp_idx, inputRate, magRespIn, phaseRespIn, THDIn):
+def processSpkCalTestData(mic_data, freq, freq_idx, amp_idx, inputRate, audioHW, magRespIn, phaseRespIn, THDIn):
     # print("SpeakerCalProtocol: processData: mic_data=" + repr(mic_data))
     # ensure data is 1D
     if len(mic_data.shape) > 1:
@@ -216,6 +216,7 @@ def runSpeakerCalTest(appObj):
         THD = np.zeros((numFreq, numAmp))
         THD[:, :] = np.nan
         
+        attenLvlLast = -1
         for freq_idx in range(0, numFreq):
             for amp_idx in range(0, numAmp):
                 freq = freq_array[freq_idx]
@@ -241,8 +242,14 @@ def runSpeakerCalTest(appObj):
                 numInputSamples = int(inputRate*len(spkOut)/outputRate) 
                 
                 if not testMode:
-                    # daq.sendDigOutCmd(attenLines, attenSig)
-                    AudioHardware.Attenuator.setLevel(attenLvl, attenLines)
+                    if attenLvl != attenLvlLast:
+                        # daq.sendDigOutCmd(attenLines, attenSig)
+                        # AudioHardware.Attenuator.setLevel(attenLvl, attenLines)
+                        if spkIdx == 0:
+                            audioHW.setAttenuatorLevel(attenLvl, audioHW.maxAtten, daq)
+                        else:
+                            audioHW.setAttenuatorLevel(audioHW.maxAtten, attenLvl, daq)
+                    attenLvlLast = attenLvl
                     
                     # setup the output task
                     daq.setupAnalogOutput([chanNameOut], audioHW.daqTrigChanIn, int(outputRate), spkOut)
@@ -277,7 +284,7 @@ def runSpeakerCalTest(appObj):
                 labelStyle = appObj.yLblStyle
                 pl.setLabel('left', 'Response', 'Pa', **labelStyle)
                 
-                micData, magResp, phaseResp, THD = processSpkCalTestData(mic_data, freq, freq_idx, amp_idx,  inputRate, magResp, phaseResp, THD)
+                micData, magResp, phaseResp, THD = processSpkCalTestData(mic_data, freq, freq_idx, amp_idx,  inputRate, audioHW, magResp, phaseResp, THD)
                      
                 pl = appObj.spCalTest_micFFT
                 pl.clear()

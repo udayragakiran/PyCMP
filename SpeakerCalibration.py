@@ -265,22 +265,27 @@ def runSpeakerCal(appObj, testMode=False):
         
         for spkNum in range(0, numSpk):
             chanNameOut = audioHW.speakerL_daqChan 
-            attenLines = audioHW.attenL_daqChan
-            attenLinesOther = audioHW.attenR_daqChan
+            #attenLines = audioHW.attenL_daqChan
+            #attenLinesOther = audioHW.attenR_daqChan
             spkIdx = 0
+
+            attenLvl1 = 0
+            attenLvl2 = audioHW.maxAtten
                 
             if spkNum == 2:
-                chanNameOut = audioHW.speakerR_daqChan
-                attenLines = audioHW.attenR_daqChan
-                attenLinesOther = audioHW.attenL_daqChan
+                #chanNameOut = audioHW.speakerR_daqChan
+                #attenLines = audioHW.attenR_daqChan
+                #attenLinesOther = audioHW.attenL_daqChan
                 spkIdx = 1
+                attenLvl1 = audioHW.maxAtten
+                attenLvl2 = 0
     
             freq_idx = 0
 
-            
+
             if not testMode:
-                AudioHardware.Attenuator.setLevel(0, attenLines)
-                AudioHardware.Attenuator.setLevel(60, attenLinesOther)
+                audioHW.setAttenuatorLevel(attenLvl1, attenLvl2, daq)
+                
                 # daq.sendDigOutCmd(attenLines, attenSig)
                 # appObj.oct_hw.SetAttenLevel(0, attenLines)
                 

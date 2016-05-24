@@ -151,7 +151,7 @@ class DAQHardware:
             numChan=chanEnd-chanStart+1
         else:
             numChan=1
-        print('numChan',numChan)
+        #print('numChan',numChan)
         
         #setup the digital output task
         dig_out = daqmx.Task()
@@ -163,12 +163,12 @@ class DAQHardware:
             dataOut_reversed=np.uint8(data_reversed[0:numChan])  # data output array should only be as long as the number of output lines
             dataOut=np.uint8(np.fliplr([dataOut_reversed])[0])
             dataOut = np.require(dataOut, np.uint8, ['C', 'W'])
-            print('outCmd, dataOut=',n,dataOut)
+            #print('outCmd, dataOut=',n,dataOut)
             dig_out.WriteDigitalLines(1,1,10.0,daqmx.DAQmx_Val_GroupByChannel,dataOut_reversed,None,None)
             time.sleep(timeBetweenPts)
         dig_out.StopTask()
         dig_out.ClearTask()       
-        print('finished writing to attenuator')
+        #print('finished writing to attenuator')
 
     def waitDoneTask(task, timeout):
         err = 0

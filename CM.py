@@ -567,7 +567,8 @@ def runCM(appObj, testMode=False):
                 
                 # attenSig = AudioHardware.makeLM1972AttenSig(0)
                 if not testMode:
-                    AudioHardware.Attenuator.setLevel(attenLvl, attenLines)
+                    # AudioHardware.Attenuator.setLevel(attenLvl, attenLines)
+                    audioHW.setAttenuatorLevel(attenLvl, audioHW.maxAtten, daq)
                     # daq.sendDigOutCmd(attenLines, attenSig)
                     # appObj.oct_hw.SetAttenLevel(0, attenLines)
                 

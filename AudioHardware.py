@@ -10,19 +10,6 @@ import ctypes
 import DAQHardware 
 
 
-class Attenuator:
-    #attenlib = ctypes.CDLL('Attenuator')
-    #set_attenlvl = attenlib.DAQIOSetAttenuatorLevel
-    #set_attenlvl.argtypes = [ ctypes.c_uint8, ctypes.c_char_p ]
-    #set_attenlvl.resttypes = ctypes.c_int32
-    
-    def setLevel(attenLvl, outLines):
-        # err = Attenuator.set_attenlvl(ctypes.c_uint8(attenLvl), outLines.encode("ASCII"))
-        sig = makeLM1971AttenSig(attenLvl)
-        daq = DAQHardware.DAQHardware()
-        daq.sendDigOutCmd(outLines, sig)
-        
-
 class AudioHardware:
     def __init__(self):
         self.micVoltsPerPascal = 1
@@ -38,6 +25,9 @@ class AudioHardware:
         self.DAQOutputRate = 500e3       # output rate of the DAQ in Hz
         self.DAQInputRate = 250e3       # output rate of the DAQ in Hz
         self.maxAtten = 60                # maximum attenuation level possible
+        self.minAtten = 0                # mioimum attenuation level possible (if negative, means amplification is possible)
+        self.attenuatorModel = 0         # model of attenuator 0 = TI LM1971 1= new attenuator
+
         self.speakerCalVolts = 0.1        # output voltage of the speaker calibration
         
          # speaker calibration frequencies, in Hz, 2D array, first index is left speaker, second index is right speaker
@@ -166,10 +156,14 @@ class AudioHardware:
                 self.DAQInputRate = float(val)
             elif(fld == 'Max Attenuation'):
                 self.maxAtten = int(val)
+            elif(fld == 'Min Attenuation'):
+                self.minAtten = int(val)                    
             elif(fld == "DAQ Device"):
                 self.DAQdevice = val
             elif(fld == "Mic"):
                 self.micName = val
+            elif(fld == 'Attenuator Model'):
+                self.attenuatorModel = int(val)                
                 
     def saveSpeakerCal(self, fileName):
         numPts = self.speakerCalFreq.shape[1]
@@ -263,6 +257,18 @@ class AudioHardware:
                 for n in range(0, numPts):
                     self.speakerCalPhase[1, n] = v[n]                    
                     
+    # set the attenuator level
+    def setAttenuatorLevel(self, left, right, daq):
+        print('AudioHardware.setAttenuatorLevel: setting left %d right %d' % (left, right))
+
+        if self.attenuatorModel == 0: # LM 1971
+            attenSig = makeLM1971AttenSig(left)
+            daq.sendDigOutCmd(self.attenL_daqChan, attenSig)
+            attenSig = makeLM1971AttenSig(right)
+            daq.sendDigOutCmd(self.attenR_daqChan, attenSig)
+        else:  # TODO need to implment for new attenuator
+            attenSig = makePGA2311AttenSig(right, left)
+            daq.sendDigOutCmd(self.attenL_daqChan, attenSig)                    
                     
 def readAudioHWConfig(filepath):    
     hw = AudioHardware()
@@ -316,6 +322,68 @@ def makeLM1971AttenSig(attenLvl):
         
     return sig
 
+"""   
+Make the digital signal to set the attenuator level for given dB level (new attenuators)
+Look at the  webpage for the programming instructions: http://www.ti.com/lit/ds/symlink/pga2311.pdf
+
+In short, there are 3 lines:
+1) CS - chip select is normally high, and then stays low during the programming
+2) SCLK - clock rising edge loads whatever is in the data line
+3) SDI - serial data input is two 8 bit values in series. First 8 bits are for the right side, second8 bits are the left side. 
+    Each 8 bit byte is the attenuation level, set by the bit combination starting at bit 7 and going to bit 0
+    
+On the attenuator box: top row of digital input (L-R) = CS,SDI,SCLK,Ground; Bottom row of digital inputs (L-R) = -,-,-,+5V
+"""
+def makePGA2311AttenSig(attenLvlRight,attenLvlLeft):
+    numpts = 16*2 + 2   # one clock cycle is 2 steps and there are 16 data bits. Plus, an extra bit on either side to raise the CS line
+    
+    # CS load signal 
+    loadSig = np.zeros(numpts, dtype=np.uint8)
+    loadSig[0] = 1 
+    loadSig[-1] = 1  
+
+    # SCLK clock signal (low on first half, high on second half)    
+    clkSig = np.zeros(numpts, dtype=np.uint8)
+    bitTracker=np.zeros(numpts, dtype=np.uint8)     
+    for n in range(0, 16):
+        clkSig[n*2+2] = 1
+        bitTracker[n*2+2] = n % 8
+        
+    # SDI Data signal
+    dataSig =  np.zeros(numpts, dtype=np.uint8) 
+    # first byte: right side
+    Nright=255-(31.5+attenLvlRight)*2
+    Nright=np.uint8(np.clip(Nright,0,255)) 
+    dataR=np.unpackbits(Nright)
+    for n in range(0, 8):
+        dataSig[n*2+1]=dataR[n]
+        dataSig[n*2+2]=dataR[n]
+    
+    # second byte: left side 
+    Nleft=255-(31.5+attenLvlLeft)*2
+    Nleft=np.uint8(np.clip(Nleft,0,255)) 
+    dataL=np.unpackbits(Nleft)
+    for n in range(0, 8):
+        dataSig[n*2+16+1]=dataL[n]
+        dataSig[n*2+16+2]=dataL[n]
+
+#    print(loadSig)
+#    print(clkSig)
+#    print(dataSig)
+#    print(bitTracker)
+#    print('data',data)
+      
+    # combine the signals together and then form 8-bit numbers
+    # bit 0=CS, 1=SDI, 2=SCLK    
+    sig = np.zeros(numpts, dtype=np.uint8)
+    combinedData=np.transpose(np.vstack((sig,sig,sig,sig,sig,clkSig,dataSig,loadSig)))
+#    combinedData=np.transpose(np.vstack((clkSig,dataSig,loadSig)))    
+    sig=np.packbits(combinedData,axis=1)
+#    print(combinedData.shape, sig.shape)
+#    print(combinedData)
+#    print(sig)
+        
+    return sig
     
 if __name__ == "__main__":
 #    from DAQHardware import DAQHardware
